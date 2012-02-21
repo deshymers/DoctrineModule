@@ -22,7 +22,8 @@ namespace DoctrineModule\Paginator\Adapter;
 use Doctrine\ORM\EntityManager,
     Doctrine\ORM\Query,
     Doctrine\ORM\QueryBuilder,
-    Zend\Paginator\Adapter;
+    Zend\Paginator\Adapter,
+    Doctrine\ORM\Tools\Pagination\Paginator;
 
 class DqlQuery implements Adapter
 {
@@ -38,15 +39,17 @@ class DqlQuery implements Adapter
      */
     protected $query;
 
-    /**
-     * @var Query
-     */
-    protected $countQuery;
 
     /**
      * @var integer
      */
     protected $count;
+    
+    /**
+     *  Doctrine Paginator
+     * @var Paginator
+     */
+    protected $paginator = null;
 
     /**
      * Constructor
@@ -100,14 +103,19 @@ class DqlQuery implements Adapter
      *
      * @param  integer $offset Page offset
      * @param  integer $itemCountPerPage Number of items per page
-     * @return array
+     * @return Paginator
      */
     public function getItems($offset, $itemCountPerPage)
     {
         $this->query->setFirstResult($offset)
                     ->setMaxResults($itemCountPerPage);
 
-        return $this->query->getResult();
+        if($this->paginator === null)
+        {
+            $this->paginator = new Paginator($this->query);
+        }
+        
+        return $this->paginator;
     }
 
     /**
@@ -129,16 +137,10 @@ class DqlQuery implements Adapter
      */
     protected function getEntityCount()
     {
-        if ($this->countQuery === null) {
-            $this->countQuery = clone ($this->query);
-            $this->countQuery->setParameters($this->query->getParameters(),
-            	$this->query->getParameterTypes());
-            $this->countQuery->setHint(
-                Query::HINT_CUSTOM_TREE_WALKERS, 
-                array('DoctrineModule\Paginator\TreeWalker\CountSqlWalker')
-            );
+        if ($this->paginator === null) {
+            $this->paginator = new Paginator($this->query);
         }
 
-        return $this->countQuery->getSingleScalarResult();
+        return count($this->paginator);
     }
 }
